@@ -2,7 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const port = 3000;
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const port = process.env.PORT || 3000;
+const uri = process.env.MONGODB_URI;
 
 app.use(cors());
 app.use(express.json());
@@ -11,12 +13,6 @@ app.get("/", (req, res) => {
   res.send("Hello World");
 });
 
-// mongo config
-
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const uri = process.env.MONGODB_URI ;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -27,27 +23,17 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    // create a collection
     const bookCollections = client.db("BookInventory").collection("books");
+    const userDataCollections = client.db("User").collection("UserData");
 
-    //insert a book to db
     app.post("/upload-book", async (req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
       res.send(result);
     });
 
-    // show all books
-    // app.get("/all-books", async (req, res) => {
-    //   const books = bookCollections.find();
-    //   const result = await books.toArray();
-    //   res.send(result);
-    // });
-
-    // update book
     app.patch("/book/:id", async (req, res) => {
       const id = req.params.id;
       const updateBookData = req.body;
@@ -58,16 +44,10 @@ async function run() {
           ...updateBookData,
         },
       };
-      //update
-      const result = await bookCollections.updateOne(
-        filter,
-        updateDoc,
-        options
-      );
+      const result = await bookCollections.updateOne(filter, updateDoc, options);
       res.send(result);
     });
 
-    // delete
     app.delete("/book/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -75,7 +55,6 @@ async function run() {
       res.send(result);
     });
 
-    // find single book by id
     app.get("/book/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -83,30 +62,105 @@ async function run() {
       res.send(result);
     });
 
-    // find by category
     app.get("/all-books", async (req, res) => {
-        let query = {};
-        if(req.query?.category){
-            query = {category:req.query.category}
-        }
-        const result = await bookCollections.find(query).toArray();
-        res.send(result);
-      });
+      let query = {};
+      if (req.query?.category) {
+        query = { category: req.query.category };
+      }
+      const result = await bookCollections.find(query).toArray();
+      res.send(result);
+    });
 
-    // Send a ping to confirm a successful connection
+    app.post("/createUser", async (req, res) => {
+      try {
+        const { email, password, username } = req.body;
+        const result = await userDataCollections.insertOne({ email, password, username });
+        res.status(200).send({ userId: result.insertedId });
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to create user' });
+        console.log(error);
+      }
+    });
+
+    app.get("/getUserData", async (req, res) => {
+      try {
+        const user = req.query.user;
+        if (!ObjectId.isValid(user)) {
+          return res.status(400).send({ message: 'Invalid user ID' });
+        }
+        const result = await userDataCollections.findOne({ _id: new ObjectId(user) });
+        if (!result) {
+          res.status(404).send({ message: 'User not found' });
+        } else {
+          res.status(200).send(result);
+        }
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to get user' });
+        console.log(error);
+      }
+    });
+    
+    
+
+    app.post("/upload-profile", async (req, res) => {
+      try {
+        const { userId, location, age, work, dob, description } = req.body;
+        const result = await userDataCollections.updateOne(
+          { _id: new ObjectId(userId) },
+          {
+            $set: {
+              location,
+              age,
+              work,
+              dob,
+              description,
+            },
+          }
+        );
+        res.status(200).send({ message: 'Profile updated successfully' });
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to update profile' });
+      }
+    });
+
+    app.post("/check-username", async (req, res) => {
+      try {
+        const { username } = req.body;
+        const user = await userDataCollections.findOne({ username });
+        if (user) {
+          res.status(200).send({ exists: true });
+        } else {
+          res.status(200).send({ exists: false });
+        }
+      } catch (error) {
+        res.status(500).send({ message: "Failed to check username" });
+      }
+    });
+
+    app.post("/login", async (req, res) => {
+      try {
+        const { username, password } = req.body;
+        const user = await userDataCollections.findOne({ username });
+        if (user && password === user.password) {
+          res.status(200).send({ userId: user._id });
+        } else {
+          res.status(400).send({ message: "Invalid username or password" });
+        }
+      } catch (error) {
+        res.status(500).send({ message: "Failed to login" });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
-    console.log("You successfully connected to MongoDB!");
+    console.log("Connected to MongoDB!");
   } finally {
-    // Ensures that the client will close when you finish/error
+    // Ensure the client will close when finished or error occurs
     // await client.close();
   }
 }
+
 run().catch(console.dir);
 
 app.listen(port, () => {
-  console.log("Express App Listening on PORT -> " + port);
+  console.log(`Express App Listening on PORT -> ${port}`);
 });
-
-// AzajozFGpGXwpl1r
-
-// mongodb+srv://sahutanmay1903:AzajozFGpGXwpl1r@cluster0.ipm0b8p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
