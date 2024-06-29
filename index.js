@@ -35,6 +35,44 @@ async function run() {
       res.send(result);
     });
 
+    app.post('/submit-review', async (req, res) => {
+      const { bookId, rating, reviewText } = req.body;
+    
+      try {
+        // Convert bookId to ObjectId
+        const objectIdBookId = new ObjectId(bookId);
+    
+        // Check if the book with the given _id exists
+        const book = await bookCollections.findOne({ _id: objectIdBookId });
+        if (!book) {
+          return res.status(404).json({ message: 'Book not found' });
+        }
+    
+        // Create a new review object
+        const newReview = {
+          rating: parseInt(rating),
+          reviewText: reviewText,
+        };
+    
+        // Update the book document to push the new review into the reviews array
+        const result = await bookCollections.updateOne(
+          { _id: objectIdBookId },
+          { $push: { reviews: newReview } }
+        );
+    
+        if (result.modifiedCount === 1) {
+          res.status(200).json({ message: 'Review added successfully' });
+        } else {
+          res.status(404).json({ message: 'Review not added' });
+        }
+      } catch (error) {
+        console.error('Error submitting review:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    });
+    
+    
+
     app.patch("/book/:id", async (req, res) => {
       const id = req.params.id;
       const updateBookData = req.body;
@@ -83,25 +121,12 @@ async function run() {
       }
     });
 
-    app.get("/getUserData", async (req, res) => {
-      try {
-        const user = req.query.user;
-        if (!ObjectId.isValid(user)) {
-          return res.status(400).send({ message: 'Invalid user ID' });
-        }
-        const result = await userDataCollections.findOne({ _id: new ObjectId(user) });
-        if (!result) {
-          res.status(404).send({ message: 'User not found' });
-        } else {
-          res.status(200).send(result);
-        }
-      } catch (error) {
-        res.status(500).send({ message: 'Failed to get user' });
-        console.log(error);
-      }
+    app.get("/getUserData/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await userDataCollections.findOne(filter);
+      res.send(result);
     });
-    
-    
 
     app.post("/upload-profile", async (req, res) => {
       try {
