@@ -1,10 +1,11 @@
 require("dotenv").config();
 const express = require("express");
-const app = express();
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 3000;
 const uri = process.env.MONGODB_URI;
+
+const app = express();
 
 app.use(cors());
 app.use(express.json());
@@ -120,6 +121,28 @@ async function run() {
         res.status(200).send({ message: 'Profile updated successfully' });
       } catch (error) {
         res.status(500).send({ message: 'Failed to update profile' });
+      }
+    });
+
+    app.put("/updateUserProfile", async (req, res) => {
+      try {
+        const { userId, ...updateData } = req.body;
+        if (!ObjectId.isValid(userId)) {
+          return res.status(400).send({ message: 'Invalid user ID' });
+        }
+        const result = await userDataCollections.updateOne(
+          { _id: new ObjectId(userId) },
+          { $set: updateData },
+          { projection: { username: 0, email: 0 } } // Exclude username and email
+        );
+        if (result.matchedCount === 0) {
+          res.status(404).send({ message: 'User not found' });
+        } else {
+          res.status(200).send({ message: 'User profile updated successfully' });
+        }
+      } catch (error) {
+        res.status(500).send({ message: 'Failed to update user profile' });
+        console.log(error);
       }
     });
 
