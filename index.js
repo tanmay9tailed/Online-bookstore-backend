@@ -28,50 +28,13 @@ async function run() {
 
     const bookCollections = client.db("BookInventory").collection("books");
     const userDataCollections = client.db("User").collection("UserData");
+    const reviewCollections = client.db("Reviews").collection("review");
 
-    app.post("/upload-book", async (req, res) => {
+    app.patch("/upload-book", async (req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
       res.send(result);
     });
-
-    app.post('/submit-review', async (req, res) => {
-      const { bookId, rating, reviewText } = req.body;
-    
-      try {
-        // Convert bookId to ObjectId
-        const objectIdBookId = new ObjectId(bookId);
-    
-        // Check if the book with the given _id exists
-        const book = await bookCollections.findOne({ _id: objectIdBookId });
-        if (!book) {
-          return res.status(404).json({ message: 'Book not found' });
-        }
-    
-        // Create a new review object
-        const newReview = {
-          rating: parseInt(rating),
-          reviewText: reviewText,
-        };
-    
-        // Update the book document to push the new review into the reviews array
-        const result = await bookCollections.updateOne(
-          { _id: objectIdBookId },
-          { $push: { reviews: newReview } }
-        );
-    
-        if (result.modifiedCount === 1) {
-          res.status(200).json({ message: 'Review added successfully' });
-        } else {
-          res.status(404).json({ message: 'Review not added' });
-        }
-      } catch (error) {
-        console.error('Error submitting review:', error);
-        res.status(500).json({ message: 'Internal server error' });
-      }
-    });
-    
-    
 
     app.patch("/book/:id", async (req, res) => {
       const id = req.params.id;
@@ -121,6 +84,26 @@ async function run() {
       }
     });
 
+    app.post("/submit-review", async (req, res) => {
+      try {
+        const data = req.body;
+        console.log(data)
+        const result = await reviewCollections.insertOne(data);
+        res.status(201).send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to submit review" });
+      }
+    });
+
+    app.get("/getReviews", async (req, res) => {
+      let query = {};
+      if (req.query?.category) {
+        query = { category: req.query.category };
+      }
+      const result = await reviewCollections.find(query).toArray();
+      res.send(result);
+    });
+
     app.get("/getUserData/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -158,7 +141,7 @@ async function run() {
         const result = await userDataCollections.updateOne(
           { _id: new ObjectId(userId) },
           { $set: updateData },
-          { projection: { username: 0, email: 0 } } // Exclude username and email
+          { projection: { username: 0, email: 0 } } 
         );
         if (result.matchedCount === 0) {
           res.status(404).send({ message: 'User not found' });
@@ -202,8 +185,6 @@ async function run() {
     await client.db("admin").command({ ping: 1 });
     console.log("Connected to MongoDB!");
   } finally {
-    // Ensure the client will close when finished or error occurs
-    // await client.close();
   }
 }
 
