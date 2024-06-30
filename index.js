@@ -30,7 +30,7 @@ async function run() {
     const userDataCollections = client.db("User").collection("UserData");
     const reviewCollections = client.db("Reviews").collection("review");
 
-    app.patch("/upload-book", async (req, res) => {
+    app.post("/upload-book", async (req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
       res.send(result);
@@ -158,6 +158,7 @@ async function run() {
       try {
         const { username } = req.body;
         const user = await userDataCollections.findOne({ username });
+        // console.log(user)
         if (user) {
           res.status(200).send({ exists: true });
         } else {
