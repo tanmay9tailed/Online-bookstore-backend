@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("You are on / ");
+  // res.send("You are on / ");
   res.send(`Express App Listening on PORT -> ${port}`);
 });
 
