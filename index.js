@@ -12,6 +12,7 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Hello World");
+  res.send(`Express App Listening on PORT -> ${port}`);
 });
 
 const client = new MongoClient(uri, {
