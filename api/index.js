@@ -270,6 +270,7 @@ app.listen(port, () => {
   console.log(`Express App Listening on PORT -> ${port}`);
 });
 
+module.exports = app;
 
 // "builds": [
 //     {
